@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+    
+    <!-- Launch orthographic depth and semantic fusion node -->
+    <node pkg="orthographic_depth_and_semantics_fusion_ros" type="fusion_node.py" name="depth_and_semantics_fusion" output="screen">
+        <param name="~depth_image_topic" value="/vrglasses_for_robots_ros/depth_map" />
+        <param name="~semantic_image_topic" value="/vrglasses_for_robots_ros/semantic_map" />
+
+        <param name="~fused_depth_out" value="/vrglasses_for_robots_ros/depth_fused" />
+        <param name="~fused_depth_confidence_out" value="/vrglasses_for_robots_ros/depth_fused_confidence" />
+
+        <param name="~max_image_count" value="10" />
+    </node>
+
+</launch>
