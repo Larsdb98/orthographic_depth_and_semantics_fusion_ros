@@ -35,6 +35,9 @@ class FuseDepthAndSemantics():
         self.fused_depth_pub = rospy.Publisher(self.__fused_depth_out_topic, Image, queue_size=10)
         self.fused_depth_confidence_pub = rospy.Publisher(self.__fused_depth_confidence_out_topic, Image, queue_size=10)
 
+        # Publish ?
+        self.should_this_node_publish_the_fused_depth_and_semantics_questionmark = False
+
 
     def depth_callback(self, depth_msg):
         depth_msg_np = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
@@ -42,8 +45,8 @@ class FuseDepthAndSemantics():
 
         h, w = depth_image.shape
 
-        print("Depth height: {}".format(h))
-        print("Depth width: {}".format(w))
+        # print("Depth height: {}".format(h))
+        # print("Depth width: {}".format(w))
 
         # Reset index counter when max value reached
         if self.depth_image_count >= self.__image_count:
@@ -52,6 +55,7 @@ class FuseDepthAndSemantics():
         # Create array for first image:
         if self.depth_accumulator is None:
             self.depth_accumulator = np.zeros((h, w, self.__image_count), dtype=np.float32)
+            # self.fused_depth_image = np.zeros((h, w), dtype=np.float32)
             self.depth_accumulator[:] = np.nan # replace all values with np.nan values (will be useful for ignoring them when computing means)
             
             self.depth_confidence_accumulator = np.zeros((h, w, self.__image_count), dtype=np.float32)
@@ -64,10 +68,10 @@ class FuseDepthAndSemantics():
 
         # Compute mean of depth accumulator & place this in self.fused_depth_image
         # Then, if necessary, publish this fused image
+        self.fused_depth_image = np.nanmean(self.depth_accumulator, axis = 2) # compute pixelwise mean for all images stored in accumulator
+        print("self.fused_depth_image shape: {}".format(self.fused_depth_image.shape))
+
         
-
-
-
 
         # self.depth_accumulator = np.zeros_like(depth_image, dtype=np.float32)
         
