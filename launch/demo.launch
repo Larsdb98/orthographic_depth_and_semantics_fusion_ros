@@ -9,7 +9,11 @@
         <param name="~fused_depth_out" value="/vrglasses_for_robots_ros/depth_fused" />
         <param name="~fused_depth_confidence_out" value="/vrglasses_for_robots_ros/depth_fused_confidence" />
 
+        <param name="~fused_semantic_out" value="/vrglasses_for_robots_ros/semantic_fused" />
+        <param name="~fused_semantic_confidence_out" value="/vrglasses_for_robots_ros/semantic_fused_confidence" />
+
         <param name="~max_image_count" value="10" />
+        <param name="~publish_fused_images" value="True" />
     </node>
 
 </launch>
