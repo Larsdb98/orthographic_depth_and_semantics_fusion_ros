@@ -12,6 +12,10 @@
         <param name="~fused_semantic_out" value="/vrglasses_for_robots_ros/semantic_fused" />
         <param name="~fused_semantic_confidence_out" value="/vrglasses_for_robots_ros/semantic_fused_confidence" />
 
+        <!-- Indicate desired probabilistic threshold for fused binary segmentation: takes values that belong to [0, 1]
+            by default the value is 0.8 (80% confidence) -->
+        <param name="~fused_semantic_threshold" value="0.8" />
+
         <param name="~max_image_count" value="10" />
         <param name="~publish_fused_images" value="True" />
     </node>

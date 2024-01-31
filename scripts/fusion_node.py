@@ -27,6 +27,7 @@ class FuseDepthAndSemantics():
 
         self.__fused_semantic_out_topic = rospy.get_param("~fused_semantic_out", "/vrglasses_for_robots_ros/semantic_fused")
         self.__fused_semantic_confidence_out_topic = rospy.get_param("~fused_semantic_confidence_out", "/vrglasses_for_robots_ros/semantic_fused_confidence")
+        self.__fused_semantic_threshold = rospy.get_param("~fused_semantic_threshold", 0.8)
 
         self.__image_count = rospy.get_param("~max_image_count", 10)
         # Publish ?
@@ -93,14 +94,26 @@ class FuseDepthAndSemantics():
 
         # Compute mean of depth accumulator & place this in self.fused_depth_image
         # Then, if necessary, publish this fused image
-        self.fused_depth_image = np.nanmean(self.depth_accumulator, axis=2) # compute pixelwise mean for all images stored in accumulator
-        
+        fused_depth_image_mean = np.nanmean(self.depth_accumulator, axis=2) # compute pixelwise mean for all images stored in accumulator
+        self.fused_depth_image = fused_depth_image_mean
+        fused_depth_confidence = self.get_depth_confidence(depth_accumulator=self.depth_accumulator, depth_mean=fused_depth_image_mean)
+
+
+
+
 
         # Publish image
         if self.publish_fused_images:
+            # Publish fused depth
             fused_depth_image_msg = self.bridge.cv2_to_imgmsg(self.fused_depth_image, encoding="passthrough")
             fused_depth_image_msg.header = depth_msg.header
             self.fused_depth_pub.publish(fused_depth_image_msg)
+
+            # Publish fused depth confidence map
+            fused_depth_confidence_msg = self.bridge.cv2_to_imgmsg(fused_depth_confidence, encoding="passthrough")
+            fused_depth_confidence_msg.header = depth_msg.header
+            self.fused_depth_confidence_pub.publish(fused_depth_confidence_msg)
+
 
 
 
@@ -116,7 +129,7 @@ class FuseDepthAndSemantics():
             self.semantic_image_count = 0
 
         # print("DEBUG: Semantic Image Counter: {}".format(self.semantic_image_count))
-
+        
         # Create array for first image:
         if self.semantic_accumulator is None:
             rospy.loginfo("First rendered semantic image received ! Fusion process started. Waiting for new messages...")
@@ -136,16 +149,63 @@ class FuseDepthAndSemantics():
 
         # Compute pixel-wise mean of semantic accumulator:
         fused_semantic_image_mean = np.nanmean(self.semantic_accumulator, axis=2)
-        self.fused_semantic_image = np.round(fused_semantic_image_mean).astype("uint8")
+        
+        # Threshold semantic image with chosen threshold in ROS params
+        self.fused_semantic_image = np.where(fused_semantic_image_mean > self.__fused_semantic_threshold, 255.0, 0.0)
+        self.fused_semantic_image = np.round(fused_semantic_image_mean).astype("uint8") # so that we can export to mono8
+
+        # Compute semantic confidence based on recieved data
+        fused_semantic_confidence = self.get_semantic_confidence(semantic_accumulator=self.semantic_accumulator)
 
 
 
         # Publish image
         if self.publish_fused_images:
+            # Publish fused semantics
             fused_semantic_image_msg = self.bridge.cv2_to_imgmsg(self.fused_semantic_image, encoding="mono8")
             fused_semantic_image_msg.header = semantic_msg.header
             self.fused_semantic_pub.publish(fused_semantic_image_msg)
-            
+
+            # Publish fused semantic confidence map
+            fused_semantic_confidence_msg = self.bridge.cv2_to_imgmsg(fused_semantic_confidence, encoding = "passthrough")
+            fused_semantic_confidence_msg.header = semantic_msg.header
+            self.fused_semantic_confidence_pub.publish(fused_semantic_confidence_msg)
+
+
+
+
+    def get_semantic_confidence(self, semantic_accumulator):
+        # Need to scale down all semantic values to fit between 0 and 1 instead of 0 and 255
+        # ortherwise we get extreme values for variance
+        semantic_accumulator_normalized = semantic_accumulator / 255.0
+        
+        # Compute pixelwise variance
+        fused_semantic_var = np.nanvar(semantic_accumulator_normalized, axis=2)
+
+        # We want to convert variance to confidence. To do so, we use the following formula:
+        # 1 / (1 + var) for each pixel. 
+
+        normalized_var = 1 / (1 + fused_semantic_var)
+        # print("Min max variance for semantic accumulation: {}, {}".format(np.nanmin(fused_semantic_var), np.nanmax(fused_semantic_var)))
+        # print("Normalized variance of semantic accumulation: {}".format(normalized_var))
+        # print("Minimum variance computed: {}".format(np.nanmin(normalized_var)))
+
+        return normalized_var
+
+
+    def get_depth_confidence(self, depth_accumulator, depth_mean):
+        # Compute pixelwise variance
+        fused_depth_var = np.nanvar(depth_accumulator, axis=2)
+
+        # Want to convert variance to confidence. To do so, we use the following formula:
+        # 1 / (1 + var) for each pixel value (depth)
+        normalized_var = 1 / (1 + fused_depth_var)
+
+        # Invalid depth values need to have minimal confidence values
+        normalized_var[depth_mean == 0.0] = 0.0
+
+        return normalized_var
+
 
 
     def run(self):
