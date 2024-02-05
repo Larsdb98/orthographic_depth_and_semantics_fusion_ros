@@ -124,6 +124,11 @@ class FuseDepthAndSemantics():
         h, w = semantic_image.shape
         # No need to filter out 0.0 since this is a legit value to designate background
 
+        semantic_image_normalized = semantic_image / 255.0
+
+        # print("Recieved rendered semantic image max value: {}".format(np.max(semantic_image_normalized)))
+        # print("Recieved rendered semantic image min value: {}".format(np.min(semantic_image_normalized)))
+
         # Reset index counter when max value reached
         if self.semantic_image_count >= self.__image_count:
             self.semantic_image_count = 0
@@ -144,15 +149,16 @@ class FuseDepthAndSemantics():
             self.semantic_confidence_accumulator[:] = np.nan
 
         # Place semantic values from recieved message into accumulator:
-        self.semantic_accumulator[:, :, self.semantic_image_count] = semantic_image
+        self.semantic_accumulator[:, :, self.semantic_image_count] = semantic_image_normalized
         self.semantic_image_count += 1 # increment semantic image count
 
         # Compute pixel-wise mean of semantic accumulator:
         fused_semantic_image_mean = np.nanmean(self.semantic_accumulator, axis=2)
         
         # Threshold semantic image with chosen threshold in ROS params
-        self.fused_semantic_image = np.where(fused_semantic_image_mean > self.__fused_semantic_threshold, 255.0, 0.0)
-        self.fused_semantic_image = np.round(fused_semantic_image_mean).astype("uint8") # so that we can export to mono8
+        self.fused_semantic_image = np.where(fused_semantic_image_mean >= self.__fused_semantic_threshold, 1, 0).astype("uint8")
+        
+        self.fused_semantic_image = self.fused_semantic_image * 255
 
         # Compute semantic confidence based on recieved data
         fused_semantic_confidence = self.get_semantic_confidence(semantic_accumulator=self.semantic_accumulator)
