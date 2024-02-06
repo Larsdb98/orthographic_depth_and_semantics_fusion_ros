@@ -8,9 +8,11 @@
 
         <param name="~fused_depth_out" value="/vrglasses_for_robots_ros/depth_fused" />
         <param name="~fused_depth_confidence_out" value="/vrglasses_for_robots_ros/depth_fused_confidence" />
+        <param name="~fused_depth_confidence_amplifier" value="500.0" />
 
         <param name="~fused_semantic_out" value="/vrglasses_for_robots_ros/semantic_fused" />
         <param name="~fused_semantic_confidence_out" value="/vrglasses_for_robots_ros/semantic_fused_confidence" />
+        <param name="~fused_semantic_confidence_amplifier" value="1000.0" />
 
         <!-- Indicate desired probabilistic threshold for fused binary segmentation: takes values that belong to [0, 1]
             by default the value is 0.8 (80% confidence) -->

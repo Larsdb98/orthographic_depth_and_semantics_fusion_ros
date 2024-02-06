@@ -24,10 +24,12 @@ class FuseDepthAndSemantics():
 
         self.__fused_depth_out_topic = rospy.get_param("~fused_depth_out", "/vrglasses_for_robots_ros/depth_fused")
         self.__fused_depth_confidence_out_topic = rospy.get_param("~fused_depth_confidence_out", "/vrglasses_for_robots_ros/depth_fused_confidence")
+        self.__fused_depth_confidence_amplifier = rospy.get_param("~fused_depth_confidence_amplifier", 500.0)
 
         self.__fused_semantic_out_topic = rospy.get_param("~fused_semantic_out", "/vrglasses_for_robots_ros/semantic_fused")
         self.__fused_semantic_confidence_out_topic = rospy.get_param("~fused_semantic_confidence_out", "/vrglasses_for_robots_ros/semantic_fused_confidence")
         self.__fused_semantic_threshold = rospy.get_param("~fused_semantic_threshold", 0.8)
+        self.__fused_semantic_confidence_amplifier = rospy.get_param("~fused_semantic_confidence_amplifier", 1000.0)
 
         self.__image_count = rospy.get_param("~max_image_count", 10)
         # Publish ?
@@ -58,8 +60,8 @@ class FuseDepthAndSemantics():
         rospy.Subscriber(self.__depth_image_topic, Image, self.depth_callback)
         rospy.Subscriber(self.__semantic_image_topic, Image, self.semantic_callback)
 
-        print("DEBUG: max_image_count: {}".format(self.__image_count))
-        print("DEBUG: publish_fused_images: {}".format(self.publish_fused_images))
+        # print("DEBUG: max_image_count: {}".format(self.__image_count))
+        # print("DEBUG: publish_fused_images: {}".format(self.publish_fused_images))
 
 
     def depth_callback(self, depth_msg):
@@ -181,12 +183,16 @@ class FuseDepthAndSemantics():
 
 
     def get_semantic_confidence(self, semantic_accumulator):
-        # Need to scale down all semantic values to fit between 0 and 1 instead of 0 and 255
+        # Need to scale down all semantic values to fit between 0 and 10 instead of 0 and 255
         # ortherwise we get extreme values for variance
         semantic_accumulator_normalized = semantic_accumulator / 255.0
+        semantic_accumulator_normalized = semantic_accumulator_normalized * self.__fused_semantic_confidence_amplifier
         
         # Compute pixelwise variance
         fused_semantic_var = np.nanvar(semantic_accumulator_normalized, axis=2)
+
+        print("DEBUG: Maximum of Semantic Variance: {}".format(np.nanmax(fused_semantic_var)))
+        print("DEBUG: Minimum of Semantic Variance: {}".format(np.nanmin(fused_semantic_var)))
 
         # We want to convert variance to confidence. To do so, we use the following formula:
         # 1 / (1 + var) for each pixel. 
@@ -200,8 +206,13 @@ class FuseDepthAndSemantics():
 
 
     def get_depth_confidence(self, depth_accumulator, depth_mean):
+        # To get a better variance results, we scale up the depth  accumulator by a factor of 10
+        depth_accumulator_scaled = depth_accumulator * self.__fused_depth_confidence_amplifier
         # Compute pixelwise variance
-        fused_depth_var = np.nanvar(depth_accumulator, axis=2)
+        fused_depth_var = np.nanvar(depth_accumulator_scaled, axis=2)
+
+        print("DEBUG: Maximum of Depth Variance: {}".format(np.nanmax(fused_depth_var)))
+        print("DEBUG: Minimum of Depth Variance: {}".format(np.nanmin(fused_depth_var)))
 
         # Want to convert variance to confidence. To do so, we use the following formula:
         # 1 / (1 + var) for each pixel value (depth)
