@@ -5,14 +5,15 @@ import rospy
 import numpy as np
 from sensor_msgs.msg import Image
 import cv_bridge
-# import cv2
-# import datetime
-# import os
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
 
 # In order to ignore all python warnings.
 # This will not suppress ROS warnings
 import warnings
 warnings.filterwarnings("ignore")
+
 
 class FuseDepthAndSemantics():
     def __init__(self):
@@ -30,6 +31,9 @@ class FuseDepthAndSemantics():
         self.__fused_semantic_confidence_out_topic = rospy.get_param("~fused_semantic_confidence_out", "/vrglasses_for_robots_ros/semantic_fused_confidence")
         self.__fused_semantic_threshold = rospy.get_param("~fused_semantic_threshold", 0.8)
         self.__fused_semantic_confidence_amplifier = rospy.get_param("~fused_semantic_confidence_amplifier", 1000.0)
+
+        self.__show_confidence_score_graph = rospy.get_param("~show_confidence_score_graph", False)
+        self.__score_graph_data_to_show = rospy.get_param("~score_graph_data_to_show", "semantics") # "semantics" or "depth"
 
         self.__image_count = rospy.get_param("~max_image_count", 10)
         # Publish ?
@@ -60,8 +64,22 @@ class FuseDepthAndSemantics():
         rospy.Subscriber(self.__depth_image_topic, Image, self.depth_callback)
         rospy.Subscriber(self.__semantic_image_topic, Image, self.semantic_callback)
 
-        # print("DEBUG: max_image_count: {}".format(self.__image_count))
-        # print("DEBUG: publish_fused_images: {}".format(self.publish_fused_images))
+
+        #################################### VISUALIZER OF CONFIDENCE SCORE ################################
+        if self.__show_confidence_score_graph:
+            if self.__score_graph_data_to_show == "semantics" or self.__score_graph_data_to_show == "depth":
+                self.fig, self.ax = plt.subplots()
+                self.ln, = self.ax.plot([], [], '-b', label="Semantic Confidence Score")
+                self.ax.set_xlabel('Frame')
+                self.ax.set_ylabel('Confidence Score')
+                self.ax.legend()
+                self.x_data, self.y_data = [] , []
+                # rospy.Timer(rospy.Duration(1), self.update_plot)
+                self.animation = FuncAnimation(self.fig, self.update_plot, interval=1000)
+            else:
+                raise Exception("Type of data to show not recognized ! Please review ~score_graph_data_to_show ROS Parameter.")
+
+
 
 
     def depth_callback(self, depth_msg):
@@ -99,9 +117,6 @@ class FuseDepthAndSemantics():
         fused_depth_image_mean = np.nanmean(self.depth_accumulator, axis=2) # compute pixelwise mean for all images stored in accumulator
         self.fused_depth_image = fused_depth_image_mean
         fused_depth_confidence = self.get_depth_confidence(depth_accumulator=self.depth_accumulator, depth_mean=fused_depth_image_mean)
-
-
-
 
 
         # Publish image
@@ -191,8 +206,8 @@ class FuseDepthAndSemantics():
         # Compute pixelwise variance
         fused_semantic_var = np.nanvar(semantic_accumulator_normalized, axis=2)
 
-        print("DEBUG: Maximum of Semantic Variance: {}".format(np.nanmax(fused_semantic_var)))
-        print("DEBUG: Minimum of Semantic Variance: {}".format(np.nanmin(fused_semantic_var)))
+        # print("DEBUG: Maximum of Semantic Variance: {}".format(np.nanmax(fused_semantic_var)))
+        # print("DEBUG: Minimum of Semantic Variance: {}".format(np.nanmin(fused_semantic_var)))
 
         # We want to convert variance to confidence. To do so, we use the following formula:
         # 1 / (1 + var) for each pixel. 
@@ -201,6 +216,12 @@ class FuseDepthAndSemantics():
         # print("Min max variance for semantic accumulation: {}, {}".format(np.nanmin(fused_semantic_var), np.nanmax(fused_semantic_var)))
         # print("Normalized variance of semantic accumulation: {}".format(normalized_var))
         # print("Minimum variance computed: {}".format(np.nanmin(normalized_var)))
+
+        if self.__show_confidence_score_graph and self.__score_graph_data_to_show == "semantics":
+            sum_confidence = np.nansum(normalized_var)
+            self.update_data(sum_confidence)
+
+
 
         return normalized_var
 
@@ -211,8 +232,8 @@ class FuseDepthAndSemantics():
         # Compute pixelwise variance
         fused_depth_var = np.nanvar(depth_accumulator_scaled, axis=2)
 
-        print("DEBUG: Maximum of Depth Variance: {}".format(np.nanmax(fused_depth_var)))
-        print("DEBUG: Minimum of Depth Variance: {}".format(np.nanmin(fused_depth_var)))
+        # print("DEBUG: Maximum of Depth Variance: {}".format(np.nanmax(fused_depth_var)))
+        # print("DEBUG: Minimum of Depth Variance: {}".format(np.nanmin(fused_depth_var)))
 
         # Want to convert variance to confidence. To do so, we use the following formula:
         # 1 / (1 + var) for each pixel value (depth)
@@ -221,12 +242,36 @@ class FuseDepthAndSemantics():
         # Invalid depth values need to have minimal confidence values
         normalized_var[depth_mean == 0.0] = 0.0
 
+        if self.__show_confidence_score_graph and self.__score_graph_data_to_show == "depth":
+            sum_confidence = np.nansum(normalized_var)
+            self.update_data(sum_confidence)
+
         return normalized_var
 
 
-
     def run(self):
-        rospy.spin()
+        if self.__show_confidence_score_graph:
+            plt.show(block=True) # Run matplotlib loop
+        else:
+            rospy.spin() # run ROS loop
+
+    ##################################################
+
+    def update_data(self, uncertaintyScore):
+        self.y_data.append(uncertaintyScore)
+        x_index = len(self.y_data)
+        self.x_data.append(x_index + 1)
+
+
+
+    def update_plot(self, frame):
+        self.ln.set_data(self.x_data, self.y_data)
+        self.ax.relim()
+        self.ax.autoscale_view()
+        self.fig.canvas.draw()
+        plt.pause(0.001)
+        return self.ln
+    
 
 
 
@@ -234,6 +279,13 @@ class FuseDepthAndSemantics():
 def main():
     try:
         node = FuseDepthAndSemantics()
+
+        # Animated score graph ?
+        # https://stackoverflow.com/questions/31174497/dynamic-updating-a-matplotlib-3d-plot-when-working-with-ros-callback
+        # if node.show_confidence_score_graph:
+        #     anim = FuncAnimation(node.fig, node.update_plot, init_func=node.plot_init)
+        #     plt.show(block=True)
+
         node.run()
     except rospy.ROSInterruptException:
         pass
