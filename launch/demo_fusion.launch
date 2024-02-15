@@ -23,6 +23,9 @@
 
         <param name="~max_image_count" value="10" />
         <param name="~publish_fused_images" value="True" />
+
+        <param name="~save_maps_dir" value="$(find orthographic_depth_and_semantics_fusion_ros)/saved_maps" />
+        <param name="~save_numpy_maps" value="True" />
     </node>
 
 </launch>

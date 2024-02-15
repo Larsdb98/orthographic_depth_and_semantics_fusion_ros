@@ -7,6 +7,7 @@ from sensor_msgs.msg import Image
 import cv_bridge
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+import os
 
 
 # In order to ignore all python warnings.
@@ -35,10 +36,16 @@ class FuseDepthAndSemantics():
         self.__show_confidence_score_graph = rospy.get_param("~show_confidence_score_graph", False)
         self.__score_graph_data_to_show = rospy.get_param("~score_graph_data_to_show", "semantics") # "semantics" or "depth"
 
+        self.__save_maps_dir = rospy.get_param("~save_maps_dir", "/root/moma_ws/src/mapping_pipeline_packages/orthographic_depth_and_semantics_fusion_ros/saved_maps")
+        self.__save_numpy_maps = rospy.get_param("~save_numpy_maps", False)
+
         self.__image_count = rospy.get_param("~max_image_count", 10)
         # Publish ?
         self.publish_fused_images = rospy.get_param("~publish_fused_images", True)
 
+        # make directory for saving maps:
+        if not os.path.isdir(self.__save_maps_dir):
+            os.mkdir(self.__save_maps_dir)
 
         # Depth image attributes
         self.fused_depth_image = None
@@ -126,10 +133,18 @@ class FuseDepthAndSemantics():
             fused_depth_image_msg.header = depth_msg.header
             self.fused_depth_pub.publish(fused_depth_image_msg)
 
+            if self.__save_numpy_maps:
+                depth_img_filepath = os.path.join(self.__save_maps_dir, "depth_fused.npy")
+                np.save(depth_img_filepath, self.fused_depth_image)
+
             # Publish fused depth confidence map
             fused_depth_confidence_msg = self.bridge.cv2_to_imgmsg(fused_depth_confidence, encoding="passthrough")
             fused_depth_confidence_msg.header = depth_msg.header
             self.fused_depth_confidence_pub.publish(fused_depth_confidence_msg)
+
+            if self.__save_numpy_maps:
+                depth_confidence_filepath = os.path.join(self.__save_maps_dir, "depth_confidence.npy")
+                np.save(depth_confidence_filepath, fused_depth_confidence)
 
 
 
@@ -189,10 +204,18 @@ class FuseDepthAndSemantics():
             fused_semantic_image_msg.header = semantic_msg.header
             self.fused_semantic_pub.publish(fused_semantic_image_msg)
 
+            if self.__save_numpy_maps:
+                semantic_img_filepath = os.path.join(self.__save_maps_dir, "semantic_fused.npy")
+                np.save(semantic_img_filepath, self.fused_semantic_image)
+
             # Publish fused semantic confidence map
             fused_semantic_confidence_msg = self.bridge.cv2_to_imgmsg(fused_semantic_confidence, encoding = "passthrough")
             fused_semantic_confidence_msg.header = semantic_msg.header
             self.fused_semantic_confidence_pub.publish(fused_semantic_confidence_msg)
+
+            if self.__save_numpy_maps:
+                semantic_confidence_filepath = os.path.join(self.__save_maps_dir, "semantic_confidence.npy")
+                np.save(semantic_confidence_filepath, fused_semantic_confidence)
 
 
 

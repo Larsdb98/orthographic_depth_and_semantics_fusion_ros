@@ -1,0 +1,4 @@
+saved_maps/depth_confidence.npy
+saved_maps/depth_fused.npy
+saved_maps/semantic_confidence.npy
+saved_maps/semantic_fused.npy

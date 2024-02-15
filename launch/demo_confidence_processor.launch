@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+    <node pkg="orthographic_depth_and_semantics_fusion_ros" type="get_low_confidence_coords_node.py" name="confidence_map_processor" output="screen">
+        <param name="~confidence_image_topic" value="/vrglasses_for_robots_ros/semantic_fused_confidence" />
+        <param name="~publish_uncertain_location_odom" value="/vrglasses_for_robots_ros/low_confidence_region" />
+
+        <param name="~publish_debug_image" value="True" />
+        <param name="~publish_debug_image_topic" value="/vrglasses_for_robots_ros/semantic_fused_confidence_processed" />
+    </node>
+
+</launch>
