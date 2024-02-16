@@ -31,7 +31,7 @@ class FuseDepthAndSemantics():
         self.__fused_semantic_out_topic = rospy.get_param("~fused_semantic_out", "/vrglasses_for_robots_ros/semantic_fused")
         self.__fused_semantic_confidence_out_topic = rospy.get_param("~fused_semantic_confidence_out", "/vrglasses_for_robots_ros/semantic_fused_confidence")
         self.__fused_semantic_threshold = rospy.get_param("~fused_semantic_threshold", 0.8)
-        self.__fused_semantic_confidence_amplifier = rospy.get_param("~fused_semantic_confidence_amplifier", 1000.0)
+        self.__fused_semantic_confidence_amplifier = rospy.get_param("~fused_semantic_confidence_amplifier", 500.0)
 
         self.__show_confidence_score_graph = rospy.get_param("~show_confidence_score_graph", False)
         self.__score_graph_data_to_show = rospy.get_param("~score_graph_data_to_show", "semantics") # "semantics" or "depth"
@@ -227,7 +227,8 @@ class FuseDepthAndSemantics():
         semantic_accumulator_normalized = semantic_accumulator_normalized * self.__fused_semantic_confidence_amplifier
         
         # Compute pixelwise variance
-        fused_semantic_var = np.nanvar(semantic_accumulator_normalized, axis=2)
+        fused_semantic_var = np.nanstd(semantic_accumulator_normalized, axis=2)
+        # fused_semantic_var = np.nanvar(semantic_accumulator_normalized, axis=2)
 
         # print("DEBUG: Maximum of Semantic Variance: {}".format(np.nanmax(fused_semantic_var)))
         # print("DEBUG: Minimum of Semantic Variance: {}".format(np.nanmin(fused_semantic_var)))
@@ -253,7 +254,8 @@ class FuseDepthAndSemantics():
         # To get a better variance results, we scale up the depth  accumulator by a factor of 10
         depth_accumulator_scaled = depth_accumulator * self.__fused_depth_confidence_amplifier
         # Compute pixelwise variance
-        fused_depth_var = np.nanvar(depth_accumulator_scaled, axis=2)
+        fused_depth_var = np.nanstd(depth_accumulator_scaled, axis=2)
+        # fused_depth_var = np.nanvar(depth_accumulator_scaled, axis=2)
 
         # print("DEBUG: Maximum of Depth Variance: {}".format(np.nanmax(fused_depth_var)))
         # print("DEBUG: Minimum of Depth Variance: {}".format(np.nanmin(fused_depth_var)))

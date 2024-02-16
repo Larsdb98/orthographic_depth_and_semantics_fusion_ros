@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
-
     <node pkg="orthographic_depth_and_semantics_fusion_ros" type="get_low_confidence_coords_node.py" name="confidence_map_processor" output="screen">
         <param name="~confidence_image_topic" value="/vrglasses_for_robots_ros/semantic_fused_confidence" />
         <param name="~publish_uncertain_location_odom" value="/vrglasses_for_robots_ros/low_confidence_region" />
 
         <param name="~publish_debug_image" value="True" />
         <param name="~publish_debug_image_topic" value="/vrglasses_for_robots_ros/semantic_fused_confidence_processed" />
+
+        <param name="~image_width"                  value="2.0" />
+
+        <param name="~gaussian_kernel_size"         value="3" />
+        <param name="~threshold_value"              value="0.1" />
+        <param name="~neighborhood_size_value"      value="1" />
+        <param name="~median_filter_kernel"         value="25" />
+        <param name="~minimum_area"                 value="2000" />
     </node>
 
 </launch>
